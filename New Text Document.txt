@@ -1,0 +1,53 @@
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.util.Base64;
+import javax.net.ssl.HttpsURLConnection;
+
+public class OAuth2AccessToken {
+
+    public static void main(String[] args) {
+
+        String clientId = "your_client_id";
+        String clientSecret = "your_client_secret";
+        String grantType = "client_credentials";
+        String tokenUrl = "https://yourserver.com/oauth/token";
+
+        try {
+            // Encode the client ID and client secret in Base64
+            String clientCredentials = clientId + ":" + clientSecret;
+            String encodedCredentials = Base64.getEncoder().encodeToString(clientCredentials.getBytes());
+
+            // Create the request to obtain the access token
+            URL url = new URL(tokenUrl);
+            HttpsURLConnection connection = (HttpsURLConnection) url.openConnection();
+            connection.setRequestMethod("POST");
+            connection.setRequestProperty("Authorization", "Basic " + encodedCredentials);
+            connection.setRequestProperty("Content-Type", "application/x-www-form-urlencoded");
+
+            // Set the request body parameters
+            String requestBody = "grant_type=" + grantType;
+
+            // Send the request
+            connection.setDoOutput(true);
+            connection.getOutputStream().write(requestBody.getBytes());
+
+            // Read the response
+            BufferedReader in = new BufferedReader(new InputStreamReader(connection.getInputStream()));
+            String inputLine;
+            StringBuilder response = new StringBuilder();
+            while ((inputLine = in.readLine()) != null) {
+                response.append(inputLine);
+            }
+            in.close();
+
+            // Extract the access token from the response
+            String accessToken = response.toString().split("\"access_token\":\"")[1].split("\"")[0];
+            System.out.println("Access Token: " + accessToken);
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+}
