@@ -1,51 +1,64 @@
-import java.io.BufferedReader;
-import java.io.InputStreamReader;
-import java.net.HttpURLConnection;
-import java.net.URL;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.util.Base64;
+import java.util.HashMap;
+import java.util.Map;
 import javax.net.ssl.HttpsURLConnection;
 
-public class OAuth2AccessToken {
-
+public class OAuth2TokenFetcher {
+    
     public static void main(String[] args) {
-
+        
+        // Set up OAuth2 parameters
         String clientId = "your_client_id";
-        String clientSecret = "your_client_secret";
+        String clientSecret = "your_client_secret\\";
+        String authEndpoint = "https://example.com/oauth2/token";
+        String scope = "openid profile email";
         String grantType = "client_credentials";
-        String tokenUrl = "https://yourserver.com/oauth/token";
-
+        
         try {
-            // Encode the client ID and client secret in Base64
-            String clientCredentials = clientId + ":" + clientSecret;
-            String encodedCredentials = Base64.getEncoder().encodeToString(clientCredentials.getBytes());
-
-            // Create the request to obtain the access token
-            URL url = new URL(tokenUrl);
-            HttpsURLConnection connection = (HttpsURLConnection) url.openConnection();
+            // Encode client credentials in Base64
+            String encodedCredentials = Base64.getEncoder().encodeToString((clientId + ":" + clientSecret).getBytes());
+            
+            // Build request parameters
+            Map<String, String> params = new HashMap<>();
+            params.put("grant_type", grantType);
+            params.put("scope", scope);
+            
+            // Build request body
+            String requestBody = "";
+            for (Map.Entry<String, String> param : params.entrySet()) {
+                requestBody += URLEncoder.encode(param.getKey(), StandardCharsets.UTF_8) + "="
+                        + URLEncoder.encode(param.getValue(), StandardCharsets.UTF_8) + "&";
+            }
+            requestBody = requestBody.substring(0, requestBody.length() - 1);
+            
+            // Send HTTP request to OAuth2 endpoint
+            HttpsURLConnection connection = (HttpsURLConnection) new URL(authEndpoint).openConnection();
             connection.setRequestMethod("POST");
             connection.setRequestProperty("Authorization", "Basic " + encodedCredentials);
             connection.setRequestProperty("Content-Type", "application/x-www-form-urlencoded");
-
-            // Set the request body parameters
-            String requestBody = "grant_type=" + grantType;
-
-            // Send the request
             connection.setDoOutput(true);
-            connection.getOutputStream().write(requestBody.getBytes());
-
-            // Read the response
-            BufferedReader in = new BufferedReader(new InputStreamReader(connection.getInputStream()));
-            String inputLine;
-            StringBuilder response = new StringBuilder();
-            while ((inputLine = in.readLine()) != null) {
-                response.append(inputLine);
+            OutputStream outputStream = connection.getOutputStream();
+            outputStream.write(requestBody.getBytes());
+            outputStream.flush();
+            outputStream.close();
+            
+            // Read response from OAuth2 endpoint
+            BufferedReader reader = new BufferedReader(new InputStreamReader(connection.getInputStream()));
+            String response = "";
+            String line;
+            while ((line = reader.readLine()) != null) {
+                response += line;
             }
-            in.close();
-
-            // Extract the access token from the response
-            String accessToken = response.toString().split("\"access_token\":\"")[1].split("\"")[0];
+            reader.close();
+            
+            // Parse access token from response
+            JSONObject jsonResponse = new JSONObject(response);
+            String accessToken = jsonResponse.getString("access_token");
+            
             System.out.println("Access Token: " + accessToken);
-
+            
         } catch (Exception e) {
             e.printStackTrace();
         }
