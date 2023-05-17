@@ -1,20 +1,60 @@
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.security.oauth2.client.InMemoryOAuth2AuthorizedClientService;
 import org.springframework.security.oauth2.client.OAuth2AuthorizeRequest;
 import org.springframework.security.oauth2.client.OAuth2AuthorizedClient;
 import org.springframework.security.oauth2.client.OAuth2AuthorizedClientManager;
+import org.springframework.security.oauth2.client.OAuth2AuthorizedClientProvider;
+import org.springframework.security.oauth2.client.OAuth2AuthorizedClientProviderBuilder;
+import org.springframework.security.oauth2.client.OAuth2AuthorizedClientProviderParameters;
+import org.springframework.security.oauth2.client.registration.ClientRegistration;
+import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
+import org.springframework.security.oauth2.client.registration.InMemoryClientRegistrationRepository;
+import org.springframework.security.oauth2.core.AuthorizationGrantType;
+import org.springframework.security.oauth2.core.ClientAuthenticationMethod;
+import org.springframework.security.oauth2.core.oidc.IdTokenClaimNames;
 
-// Inject the OAuth2AuthorizedClientManager into your class
-private OAuth2AuthorizedClientManager authorizedClientManager;
+@Configuration
+public class OAuth2Config {
 
-// Obtain the access token
-public String getAccessToken() {
-    OAuth2AuthorizeRequest authorizeRequest =
-            OAuth2AuthorizeRequest.withClientRegistrationId("your-client-registration-id")
-                    .principal(yourAuthenticationPrincipal)
-                    .scope("your-requested-scope")
-                    .build();
+    // Define the client registration repository
+    @Bean
+    public ClientRegistrationRepository clientRegistrationRepository() {
+        ClientRegistration clientRegistration = ClientRegistration.withRegistrationId("your-client-registration-id")
+                .clientId("your-client-id")
+                .clientSecret("your-client-secret")
+                .clientAuthenticationMethod(ClientAuthenticationMethod.BASIC)
+                .authorizationGrantType(AuthorizationGrantType.CLIENT_CREDENTIALS)
+                .tokenUri("https://example.com/oauth/token")
+                .scope("your-requested-scope")
+                .build();
 
-    OAuth2AuthorizedClient authorizedClient =
-            authorizedClientManager.authorize(authorizeRequest);
+        return new InMemoryClientRegistrationRepository(clientRegistration);
+    }
 
-    return authorizedClient.getAccessToken().getTokenValue();
+    // Create the OAuth2AuthorizedClientManager
+    @Bean
+    public OAuth2AuthorizedClientManager authorizedClientManager(ClientRegistrationRepository clientRegistrationRepository) {
+        OAuth2AuthorizedClientProvider authorizedClientProvider = OAuth2AuthorizedClientProviderBuilder.builder()
+                .clientCredentials()
+                .build();
+
+        DefaultOAuth2AuthorizedClientManager authorizedClientManager =
+                new DefaultOAuth2AuthorizedClientManager(clientRegistrationRepository, new InMemoryOAuth2AuthorizedClientService(clientRegistrationRepository));
+        authorizedClientManager.setAuthorizedClientProvider(authorizedClientProvider);
+
+        return authorizedClientManager;
+    }
+
+    // Obtain the access token
+    public String getAccessToken(OAuth2AuthorizedClientManager authorizedClientManager) {
+        OAuth2AuthorizeRequest authorizeRequest =
+                OAuth2AuthorizeRequest.withClientRegistrationId("your-client-registration-id")
+                        .build();
+
+        OAuth2AuthorizedClient authorizedClient =
+                authorizedClientManager.authorize(authorizeRequest);
+
+        return authorizedClient.getAccessToken().getTokenValue();
+    }
 }
