@@ -1,50 +1,53 @@
+import org.springframework.web.reactive.function.BodyInserters;
 import org.springframework.web.reactive.function.client.WebClient;
-import org.springframework.web.reactive.function.client.WebClientResponseException;
 import org.springframework.web.util.UriComponentsBuilder;
 
-import java.util.Base64;
+public class OAuth2TokenRetriever {
+    public String getAccessToken() {
+        // Set up your OAuth 2.0 client configuration
+        String clientId = "your-client-id";
+        String clientSecret = "your-client-secret";
+        String authorizationUrl = "https://example.com/oauth/authorize";
+        String tokenUrl = "https://example.com/oauth/token";
 
-public class OAuth2TokenClient {
-    private static final String TOKEN_ENDPOINT = "https://example.com/oauth/token";
-    private static final String CLIENT_ID = "your-client-id";
-    private static final String CLIENT_SECRET = "your-client-secret";
-    private static final String USERNAME = "your-username";
-    private static final String PASSWORD = "your-password";
-    private static final String SCOPE = "your-requested-scope";
+        // Create WebClient
+        WebClient webClient = WebClient.create();
 
-    public static void main(String[] args) {
-        WebClient webClient = WebClient.builder().build();
-
-        String tokenEndpoint = UriComponentsBuilder.fromUriString(TOKEN_ENDPOINT)
-                .queryParam("grant_type", "password")
-                .queryParam("username", USERNAME)
-                .queryParam("password", PASSWORD)
-                .queryParam("scope", SCOPE)
+        // Build the request body
+        String grantType = "client_credentials";
+        String scope = "your-requested-scope";
+        String requestBody = UriComponentsBuilder.newInstance()
+                .queryParam("grant_type", grantType)
+                .queryParam("client_id", clientId)
+                .queryParam("client_secret", clientSecret)
+                .queryParam("scope", scope)
                 .build()
+                .encode()
                 .toUriString();
 
-        String clientCredentials = Base64.getEncoder().encodeToString((CLIENT_ID + ":" + CLIENT_SECRET).getBytes());
-
-        String accessToken = webClient.post()
-                .uri(tokenEndpoint)
-                .header("Authorization", "Basic " + clientCredentials)
+        // Send the POST request to the token URL
+        String response = webClient.post()
+                .uri(tokenUrl)
+                .header("Content-Type", "application/x-www-form-urlencoded")
+                .body(BodyInserters.fromFormData(requestBody))
                 .retrieve()
-                .bodyToMono(TokenResponse.class)
-                .map(TokenResponse::getAccessToken)
+                .bodyToMono(String.class)
                 .block();
 
-        System.out.println("Access Token: " + accessToken);
+        // Extract the access token from the response
+        String accessToken = extractAccessToken(response);
+
+        return accessToken;
     }
 
-    private static class TokenResponse {
-        private String accessToken;
+    private String extractAccessToken(String response) {
+        // Extract the access token from the response based on the JSON structure
+        // This implementation may vary depending on the OAuth 2.0 provider
 
-        public String getAccessToken() {
-            return accessToken;
-        }
+        // Example: Assuming the response is in JSON format like {"access_token": "YOUR_ACCESS_TOKEN"}
+        JsonObject jsonObject = JsonParser.parseString(response).getAsJsonObject();
+        String accessToken = jsonObject.get("access_token").getAsString();
 
-        public void setAccessToken(String accessToken) {
-            this.accessToken = accessToken;
-        }
+        return accessToken;
     }
 }
