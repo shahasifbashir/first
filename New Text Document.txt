@@ -1,66 +1,46 @@
-import java.net.URLEncoder;
-import java.nio.charset.StandardCharsets;
-import java.util.Base64;
-import java.util.HashMap;
-import java.util.Map;
-import javax.net.ssl.HttpsURLConnection;
+import org.springframework.http.HttpHeaders;
+import org.springframework.security.oauth2.core.OAuth2AccessToken;
+import org.springframework.web.reactive.function.BodyInserters;
+import org.springframework.web.reactive.function.client.WebClient;
 
-public class OAuth2TokenFetcher {
-    
-    public static void main(String[] args) {
-        
-        // Set up OAuth2 parameters
-        String clientId = "your_client_id";
-        String clientSecret = "your_client_secret\\";
-        String authEndpoint = "https://example.com/oauth2/token";
-        String scope = "openid profile email";
-        String grantType = "client_credentials";
-        
-        try {
-            // Encode client credentials in Base64
-            String encodedCredentials = Base64.getEncoder().encodeToString((clientId + ":" + clientSecret).getBytes());
-            
-            // Build request parameters
-            Map<String, String> params = new HashMap<>();
-            params.put("grant_type", grantType);
-            params.put("scope", scope);
-            
-            // Build request body
-            String requestBody = "";
-            for (Map.Entry<String, String> param : params.entrySet()) {
-                requestBody += URLEncoder.encode(param.getKey(), StandardCharsets.UTF_8) + "="
-                        + URLEncoder.encode(param.getValue(), StandardCharsets.UTF_8) + "&";
-            }
-            requestBody = requestBody.substring(0, requestBody.length() - 1);
-            
-            // Send HTTP request to OAuth2 endpoint
-            HttpsURLConnection connection = (HttpsURLConnection) new URL(authEndpoint).openConnection();
-            connection.setRequestMethod("POST");
-            connection.setRequestProperty("Authorization", "Basic " + encodedCredentials);
-            connection.setRequestProperty("Content-Type", "application/x-www-form-urlencoded");
-            connection.setDoOutput(true);
-            OutputStream outputStream = connection.getOutputStream();
-            outputStream.write(requestBody.getBytes());
-            outputStream.flush();
-            outputStream.close();
-            
-            // Read response from OAuth2 endpoint
-            BufferedReader reader = new BufferedReader(new InputStreamReader(connection.getInputStream()));
-            String response = "";
-            String line;
-            while ((line = reader.readLine()) != null) {
-                response += line;
-            }
-            reader.close();
-            
-            // Parse access token from response
-            JSONObject jsonResponse = new JSONObject(response);
-            String accessToken = jsonResponse.getString("access_token");
-            
-            System.out.println("Access Token: " + accessToken);
-            
-        } catch (Exception e) {
-            e.printStackTrace();
+public class MyApiClient {
+
+    private final WebClient webClient;
+
+    public MyApiClient(WebClient.Builder webClientBuilder) {
+        this.webClient = webClientBuilder.build();
+    }
+
+    public String getAccessToken() {
+        // Prepare the request body with the required parameters
+        MultiValueMap<String, String> body = new LinkedMultiValueMap<>();
+        body.add("grant_type", "client_credentials");
+        body.add("client_id", "YOUR_CLIENT_ID");
+        body.add("client_secret", "YOUR_CLIENT_SECRET");
+        body.add("scope", "YOUR_SCOPES");
+
+        // Send the request to the token URL and retrieve the access token response
+        AccessTokenResponse response = webClient.post()
+                .uri("YOUR_TOKEN_URL")
+                .header(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_FORM_URLENCODED_VALUE)
+                .body(BodyInserters.fromFormData(body))
+                .retrieve()
+                .bodyToMono(AccessTokenResponse.class)
+                .block();
+
+        if (response == null || response.getAccessToken() == null) {
+            throw new RuntimeException("Failed to obtain access token");
         }
+
+        return response.getAccessToken();
+    }
+
+    // Implement your API methods using WebClient
+    public Mono<String> getSomeData() {
+        return webClient.get()
+                .uri("https://api.example.com/some-data")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + getAccessToken())
+                .retrieve()
+                .bodyToMono(String.class);
     }
 }
