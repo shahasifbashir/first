@@ -1,46 +1,20 @@
-import org.springframework.http.HttpHeaders;
-import org.springframework.security.oauth2.core.OAuth2AccessToken;
-import org.springframework.web.reactive.function.BodyInserters;
-import org.springframework.web.reactive.function.client.WebClient;
+import org.springframework.security.oauth2.client.OAuth2AuthorizeRequest;
+import org.springframework.security.oauth2.client.OAuth2AuthorizedClient;
+import org.springframework.security.oauth2.client.OAuth2AuthorizedClientManager;
 
-public class MyApiClient {
+// Inject the OAuth2AuthorizedClientManager into your class
+private OAuth2AuthorizedClientManager authorizedClientManager;
 
-    private final WebClient webClient;
+// Obtain the access token
+public String getAccessToken() {
+    OAuth2AuthorizeRequest authorizeRequest =
+            OAuth2AuthorizeRequest.withClientRegistrationId("your-client-registration-id")
+                    .principal(yourAuthenticationPrincipal)
+                    .scope("your-requested-scope")
+                    .build();
 
-    public MyApiClient(WebClient.Builder webClientBuilder) {
-        this.webClient = webClientBuilder.build();
-    }
+    OAuth2AuthorizedClient authorizedClient =
+            authorizedClientManager.authorize(authorizeRequest);
 
-    public String getAccessToken() {
-        // Prepare the request body with the required parameters
-        MultiValueMap<String, String> body = new LinkedMultiValueMap<>();
-        body.add("grant_type", "client_credentials");
-        body.add("client_id", "YOUR_CLIENT_ID");
-        body.add("client_secret", "YOUR_CLIENT_SECRET");
-        body.add("scope", "YOUR_SCOPES");
-
-        // Send the request to the token URL and retrieve the access token response
-        AccessTokenResponse response = webClient.post()
-                .uri("YOUR_TOKEN_URL")
-                .header(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_FORM_URLENCODED_VALUE)
-                .body(BodyInserters.fromFormData(body))
-                .retrieve()
-                .bodyToMono(AccessTokenResponse.class)
-                .block();
-
-        if (response == null || response.getAccessToken() == null) {
-            throw new RuntimeException("Failed to obtain access token");
-        }
-
-        return response.getAccessToken();
-    }
-
-    // Implement your API methods using WebClient
-    public Mono<String> getSomeData() {
-        return webClient.get()
-                .uri("https://api.example.com/some-data")
-                .header(HttpHeaders.AUTHORIZATION, "Bearer " + getAccessToken())
-                .retrieve()
-                .bodyToMono(String.class);
-    }
+    return authorizedClient.getAccessToken().getTokenValue();
 }
