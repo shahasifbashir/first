@@ -1,53 +1,38 @@
-import org.springframework.web.reactive.function.BodyInserters;
-import org.springframework.web.reactive.function.client.WebClient;
-import org.springframework.web.util.UriComponentsBuilder;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
+import org.springframework.security.oauth2.client.OAuth2RestTemplate;
+import org.springframework.security.oauth2.client.resource.OAuth2ProtectedResourceDetails;
+import org.springframework.security.oauth2.client.token.grant.password.ResourceOwnerPasswordResourceDetails;
 
-public class OAuth2TokenRetriever {
-    public String getAccessToken() {
-        // Set up your OAuth 2.0 client configuration
-        String clientId = "your-client-id";
-        String clientSecret = "your-client-secret";
-        String authorizationUrl = "https://example.com/oauth/authorize";
-        String tokenUrl = "https://example.com/oauth/token";
-
-        // Create WebClient
-        WebClient webClient = WebClient.create();
-
-        // Build the request body
-        String grantType = "client_credentials";
-        String scope = "your-requested-scope";
-        String requestBody = UriComponentsBuilder.newInstance()
-                .queryParam("grant_type", grantType)
-                .queryParam("client_id", clientId)
-                .queryParam("client_secret", clientSecret)
-                .queryParam("scope", scope)
-                .build()
-                .encode()
-                .toUriString();
-
-        // Send the POST request to the token URL
-        String response = webClient.post()
-                .uri(tokenUrl)
-                .header("Content-Type", "application/x-www-form-urlencoded")
-                .body(BodyInserters.fromFormData(requestBody))
-                .retrieve()
-                .bodyToMono(String.class)
-                .block();
-
-        // Extract the access token from the response
-        String accessToken = extractAccessToken(response);
-
-        return accessToken;
+public class Main {
+    public static void main(String[] args) {
+        OAuth2RestTemplate restTemplate = createOAuth2RestTemplate();
+        String url = "https://api.example.com/endpoint";
+        String requestBody = "your-request-body";
+        
+        HttpHeaders headers = new HttpHeaders();
+        headers.set("Content-Type", "application/json");
+        HttpEntity<String> requestEntity = new HttpEntity<>(requestBody, headers);
+        
+        String response = restTemplate.exchange(url, HttpMethod.POST, requestEntity, String.class).getBody();
+        System.out.println(response);
     }
 
-    private String extractAccessToken(String response) {
-        // Extract the access token from the response based on the JSON structure
-        // This implementation may vary depending on the OAuth 2.0 provider
+    private static OAuth2RestTemplate createOAuth2RestTemplate() {
+        OAuth2ProtectedResourceDetails resourceDetails = createResourceDetails();
+        OAuth2RestTemplate restTemplate = new OAuth2RestTemplate(resourceDetails);
+        return restTemplate;
+    }
 
-        // Example: Assuming the response is in JSON format like {"access_token": "YOUR_ACCESS_TOKEN"}
-        JsonObject jsonObject = JsonParser.parseString(response).getAsJsonObject();
-        String accessToken = jsonObject.get("access_token").getAsString();
-
-        return accessToken;
+    private static OAuth2ProtectedResourceDetails createResourceDetails() {
+        ResourceOwnerPasswordResourceDetails resourceDetails = new ResourceOwnerPasswordResourceDetails();
+        resourceDetails.setClientId("your-client-id");
+        resourceDetails.setClientSecret("your-client-secret");
+        resourceDetails.setAccessTokenUri("https://example.com/oauth2/token");
+        resourceDetails.setUsername("your-username");
+        resourceDetails.setPassword("your-password");
+        // Set any other required properties
+        return resourceDetails;
     }
 }
