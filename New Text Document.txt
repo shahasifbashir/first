@@ -1,38 +1,12 @@
-import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpMethod;
-import org.springframework.security.oauth2.client.OAuth2RestTemplate;
-import org.springframework.security.oauth2.client.resource.OAuth2ProtectedResourceDetails;
-import org.springframework.security.oauth2.client.token.grant.password.ResourceOwnerPasswordResourceDetails;
-
-public class Main {
-    public static void main(String[] args) {
-        OAuth2RestTemplate restTemplate = createOAuth2RestTemplate();
-        String url = "https://api.example.com/endpoint";
-        String requestBody = "your-request-body";
-        
-        HttpHeaders headers = new HttpHeaders();
-        headers.set("Content-Type", "application/json");
-        HttpEntity<String> requestEntity = new HttpEntity<>(requestBody, headers);
-        
-        String response = restTemplate.exchange(url, HttpMethod.POST, requestEntity, String.class).getBody();
-        System.out.println(response);
-    }
-
-    private static OAuth2RestTemplate createOAuth2RestTemplate() {
-        OAuth2ProtectedResourceDetails resourceDetails = createResourceDetails();
-        OAuth2RestTemplate restTemplate = new OAuth2RestTemplate(resourceDetails);
-        return restTemplate;
-    }
-
-    private static OAuth2ProtectedResourceDetails createResourceDetails() {
-        ResourceOwnerPasswordResourceDetails resourceDetails = new ResourceOwnerPasswordResourceDetails();
-        resourceDetails.setClientId("your-client-id");
-        resourceDetails.setClientSecret("your-client-secret");
-        resourceDetails.setAccessTokenUri("https://example.com/oauth2/token");
-        resourceDetails.setUsername("your-username");
-        resourceDetails.setPassword("your-password");
-        // Set any other required properties
-        return resourceDetails;
-    }
-}
+Mono<ResponseEntity<MyResponse>> responseMono = client.post()
+    .uri("/endpoint")
+    .body(Mono.just(request), MyRequest.class)
+    .exchangeToMono(response -> {
+        if (response.statusCode().is2xxSuccessful()) {
+            return response.bodyToMono(MyResponse.class)
+                    .map(body -> ResponseEntity.ok().body(body));
+        } else {
+            return response.bodyToMono(MyResponse.class)
+                    .map(errorBody -> ResponseEntity.status(response.statusCode()).body(errorBody));
+        }
+    });
